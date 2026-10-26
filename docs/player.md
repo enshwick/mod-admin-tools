@@ -1,5 +1,5 @@
 ---
-id: admin-tools
+id: enshwick.admin-tools
 name: Admin tools
 summary: Tools for test servers. Administrators list players, mods and placed pieces, give items and reread settings from the Mods screen.
 needs: server
@@ -23,12 +23,12 @@ then the actions show as off.
 
 ## How does the command file work?
 
-The file is `mod-data/admin-tools/commands.txt` beside the game. Add a line,
-such as `admin-tools world`, and save. Within a second, the line runs as the
+The file is `mod-data/enshwick.admin-tools/commands.txt` beside the game. Add a
+line, such as `enshwick.admin-tools world`, and save. Within a second, the line runs as the
 server's console. `<mod id> help` lists a mod's actions.
 
 Each line runs once. The line and its answer go to
-`logs/enshwick/mods/admin-tools.log`.
+`logs/enshwick/mods/enshwick.admin-tools.log`.
 
 ## Install
 
