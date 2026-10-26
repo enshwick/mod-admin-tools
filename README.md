@@ -1,88 +1,13 @@
 # Admin tools
 
-Tools for test servers, for mod authors and server owners trying things out.
-Administrators get actions on the mod's page of the Mods screen, and a
-command file runs lines on the server's console without anyone joining.
+This mod is retired. The Enshwick loader does its work itself: on a
+dedicated server, lines typed into the server's console window or added to
+`mod-data/enshwick/commands.txt` run on the server's console. `enshwick help`
+lists the tools, among them `world`, `entity`, `placed`, `mods`, `reload`,
+`kick`, `ban` and `unban`. The
+[console chapter](https://github.com/enshwick/enshwick/blob/main/book/src/chat.md#the-command-file)
+describes them.
 
-| Action    | What it does                                                                             |
-| --------- | ---------------------------------------------------------------------------------------- |
-| `world`   | the players online, their slots, entities and positions                                  |
-| `entity`  | an entity's template GUID, the item it was placed from, position                         |
-| `placed`  | the last pieces and props placed in this world, newest first, with entity ids            |
-| `mods`    | every loaded mod, its version, sides and whether it runs                                 |
-| `reload`  | the mod picked rereads the running world's settings, or else `mod-configs/<mod id>.toml` |
-| `give`    | new items for you, at most 10000                                                         |
-| `give-to` | new items for the player picked, at most 10000                                           |
-
-The tools use only what Enshwick offers: world reads, its inventory API and
-settings reloads. An item is its number. `placed` keeps the last 32
-placements and forgets them when the world stops.
-
-## The command file
-
-`mod-data/enshwick.admin-tools/commands.txt`, beside the game. Append a line,
-save, and within a second it runs on the server's game thread as the server's
-console, an administrator with no character. A line is one of:
-
-- a mod's id, an action and its values, such as `enshwick.admin-tools world`,
-  `enshwick.admin-tools give-to 3073 10 Ann` or
-  `enshwick.personal-safes help`; `<mod id> help` lists a mod's actions;
-- `enshwick` and one of the loader's tools: `status`, `profile [reset]`,
-  `conflicts`, `log [mod] [level] [n]`, `recipes [find <text>]`,
-  `config [mod] [key] [value]`, `ui-demo <player>` or a mod's id;
-  `enshwick help` lists them.
-
-The line and its answer go to `logs/enshwick/mods/enshwick.admin-tools.log`.
-
-```text
-# lines starting with # are notes
-enshwick.admin-tools world
-enshwick.admin-tools placed 3
-enshwick status
-```
-
-Each line runs once. Lines already in the file when the server starts are
-skipped, and a line runs only once it ends with a line break. Emptying the
-file starts it over a second later: a file that got shorter or changed waits
-for one more read, so an editor's save caught half written runs no line
-twice.
-
-## Settings
-
-`mod-configs/enshwick.admin-tools.toml`, written on first start; each
-world keeps its own copy of it (see [Settings](https://github.com/enshwick/enshwick#settings)):
-
-```toml
-enabled = false
-```
-
-The actions answer administrators only. The tools stay off until
-`enabled = true`, which an administrator sets behind the mod's gear on the
-Mods screen: until then the actions show as off, and lines appended to the
-command file are skipped, not kept for later. Keep
-them off on a server people play on. A change applies
-at once, without a restart.
-
-## From earlier ids
-
-This mod was `admin-tools` and, before that, `dev-tools`. On the first start
-the loader copies the settings and the data folder kept under either id to
-`enshwick.admin-tools`, where the new id has none yet, and never starts an old
-`mods/enshwick-dev-tools.dll` beside this mod.
-
-## Install
-
-Download [`enshwick-admin-tools.zip`](https://github.com/enshwick/mod-admin-tools/releases/download/dev/enshwick-admin-tools.zip)
-and extract it into the folder that holds `enshrouded.exe` or
-`enshrouded_server.exe`. It needs Enshwick Loader:
-[`enshwick-loader.zip`](https://github.com/enshwick/enshwick/releases/download/dev/enshwick-loader.zip)
-alone, or [`enshwick.zip`](https://github.com/enshwick/enshwick/releases/download/dev/enshwick.zip)
-with every mod. These are development builds of the newest commit: until
-the first release, 1.0.0, there are no others.
-
-## Who needs it
-
-Only the server, the dedicated one or a game a client hosts. Players need
-nothing, and it does not count in the join check.
-
-Licensed under [MIT](LICENSE).
+The loader never loads this mod and names its file in the log as replaced,
+so it can be deleted from the `mods` folder. A command file left in
+`mod-data/enshwick.admin-tools/` is still read.
