@@ -5,7 +5,7 @@ crate_name: enshwick-admin-tools
 description: 'Tools for test servers: administrator actions and a command file run
     on the server console'
 enshwick_version: 1.0.0-alpha.2
-mod_id: admin-tools
+mod_id: enshwick.admin-tools
 mod_name: Admin tools
 repository: enshwick/mod-admin-tools
 side: server

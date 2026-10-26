@@ -1,5 +1,6 @@
-//! The command file: lines appended to `mod-data/admin-tools/commands.txt`
-//! run on the server's console, each once.
+//! The command file: lines appended to
+//! `mod-data/enshwick.admin-tools/commands.txt` run on the server's console,
+//! each once.
 //!
 //! The file is read again whenever its length or modified time changes.
 //! Only complete lines run, so a line still being written waits for its line
