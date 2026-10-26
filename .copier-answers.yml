@@ -1,0 +1,11 @@
+# Written by copier; `copier update` reads it to merge template changes.
+_commit: e3066da
+_src_path: gh:enshwick/template-mod
+crate_name: enshwick-admin-tools
+description: 'Tools for test servers: administrator actions and a command file run
+    on the server console'
+enshwick_version: 1.0.0-alpha.2
+mod_id: admin-tools
+mod_name: Admin tools
+repository: enshwick/mod-admin-tools
+side: server
