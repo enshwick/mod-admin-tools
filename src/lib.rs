@@ -40,7 +40,7 @@ const POLL: Duration = Duration::from_secs(1);
 const COMMAND_FILE: &str = "commands.txt";
 /// Placed pieces `placed` remembers.
 const REMEMBERED: usize = 32;
-/// The action labels, in English and Ukrainian.
+/// The action labels, a table per language.
 const TEXTS: &str = r#"
 [en]
 "world" = "Players online"
@@ -424,6 +424,19 @@ mod tests {
     use enshwick::abi::{Header, PlayerInfo, Status};
 
     use super::*;
+
+    #[test]
+    fn every_text_exists_in_all_languages() {
+        let languages: std::collections::BTreeMap<
+            String,
+            std::collections::BTreeMap<String, String>,
+        > = toml::from_str(TEXTS).unwrap();
+        for (language, entries) in &languages {
+            for key in languages.values().flat_map(|other| other.keys()) {
+                assert!(entries.contains_key(key), "{key} has no {language}");
+            }
+        }
+    }
 
     fn player(permissions: u8) -> PlayerInfo {
         PlayerInfo {
