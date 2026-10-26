@@ -20,24 +20,24 @@ placements and forgets them when the world stops.
 
 ## The command file
 
-`mod-data/admin-tools/commands.txt`, beside the game. Append a line, save, and
-within a second it runs on the server's game thread as the server's console,
-an administrator with no character. A line is one of:
+`mod-data/enshwick.admin-tools/commands.txt`, beside the game. Append a line,
+save, and within a second it runs on the server's game thread as the server's
+console, an administrator with no character. A line is one of:
 
-- a mod's id, an action and its values, such as `admin-tools world`,
-  `admin-tools give-to 3073 10 Ann` or `safes help`; `<mod id> help` lists
-  a mod's actions;
+- a mod's id, an action and its values, such as `enshwick.admin-tools world`,
+  `enshwick.admin-tools give-to 3073 10 Ann` or
+  `enshwick.personal-safes help`; `<mod id> help` lists a mod's actions;
 - `enshwick` and one of the loader's tools: `status`, `profile [reset]`,
   `conflicts`, `log [mod] [level] [n]`, `recipes [find <text>]`,
   `config [mod] [key] [value]`, `ui-demo <player>` or a mod's id;
   `enshwick help` lists them.
 
-The line and its answer go to `logs/enshwick/mods/admin-tools.log`.
+The line and its answer go to `logs/enshwick/mods/enshwick.admin-tools.log`.
 
 ```text
 # lines starting with # are notes
-admin-tools world
-admin-tools placed 3
+enshwick.admin-tools world
+enshwick.admin-tools placed 3
 enshwick status
 ```
 
@@ -49,7 +49,7 @@ twice.
 
 ## Settings
 
-`mod-configs/admin-tools.toml`, written on first start; each
+`mod-configs/enshwick.admin-tools.toml`, written on first start; each
 world keeps its own copy of it (see [Settings](https://github.com/enshwick/enshwick#settings)):
 
 ```toml
@@ -63,15 +63,12 @@ command file are skipped, not kept for later. Keep
 them off on a server people play on. A change applies
 at once, without a restart.
 
-## From dev tools
+## From earlier ids
 
-This mod was `enshwick-dev-tools`, id `dev-tools`. On its first start it moves
-`mod-configs/dev-tools.toml` to `mod-configs/admin-tools.toml` and
-`mod-data/dev-tools` to `mod-data/admin-tools`, unless
-`mod-configs/admin-tools.toml` already exists or `mod-data/admin-tools` is not
-empty. The loader never starts
-an old `mods/enshwick-dev-tools.dll` beside this mod and logs that it can be
-deleted.
+This mod was `admin-tools` and, before that, `dev-tools`. On the first start
+the loader copies the settings and the data folder kept under either id to
+`enshwick.admin-tools`, where the new id has none yet, and never starts an old
+`mods/enshwick-dev-tools.dll` beside this mod.
 
 ## Install
 

@@ -1,5 +1,5 @@
 ---
-id: admin-tools
+id: enshwick.admin-tools
 name: Admin tools
 summary: Інструменти для тестових серверів. Адміністратори бачать гравців, моди й поставлені деталі, видають предмети й перечитують налаштування з екрана модів.
 needs: server
@@ -23,12 +23,12 @@ settings:
 
 ## Як працює командний файл?
 
-Файл лежить у `mod-data/admin-tools/commands.txt` поруч із грою. Додайте рядок,
-як-от `admin-tools world`, і збережіть. За секунду рядок виконається як консоль
+Файл лежить у `mod-data/enshwick.admin-tools/commands.txt` поруч із грою.
+Додайте рядок, як-от `enshwick.admin-tools world`, і збережіть. За секунду рядок виконається як консоль
 сервера. `<mod id> help` показує дії мода.
 
 Кожен рядок виконується один раз. Рядок і відповідь ідуть у
-`logs/enshwick/mods/admin-tools.log`.
+`logs/enshwick/mods/enshwick.admin-tools.log`.
 
 ## Встановлення
 

@@ -4,23 +4,19 @@
 //! Off until `enabled = true` in the world's settings. While on, an
 //! administrator finds `world`, `mods` and the other actions on the mod's
 //! page of the Mods screen, and every line appended to
-//! `mod-data/admin-tools/commands.txt` runs on the server's game thread as a
-//! console line: `admin-tools world`, any mod's actions, or the loader's own
-//! `enshwick ...`; each line and its answer go to
-//! `logs/enshwick/mods/admin-tools.log`. The actions use only what the
-//! platform offers: world reads, the inventory API and settings reloads.
-//!
-//! The mod was `dev-tools` before: its settings file and data folder move to
-//! the new id on the first start.
+//! `mod-data/enshwick.admin-tools/commands.txt` runs on the server's game
+//! thread as a console line: `enshwick.admin-tools world`, any mod's actions,
+//! or the loader's own `enshwick ...`; each line and its answer go to
+//! `logs/enshwick/mods/enshwick.admin-tools.log`. The actions use only what
+//! the platform offers: world reads, the inventory API and settings reloads.
 
 pub mod answers;
 pub mod file;
-mod migrate;
 
 use std::collections::VecDeque;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::{Arc, Mutex, PoisonError};
+use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use std::time::{Duration, SystemTime};
 
 use enshwick::actions::{Action, Arg, Ask, Outcome, Subject, Value};
@@ -28,6 +24,7 @@ use enshwick::ecs::Entity;
 use enshwick::events::BuildingPlaced;
 use enshwick::inventory::Inventories;
 use enshwick::schedule::Scheduler;
+use enshwick::state::ModLocal;
 use enshwick::world::World;
 use enshwick::{Host, Load, Mod, Off};
 
@@ -74,29 +71,40 @@ const TEXTS: &str = r#"
 "off" = "Інструменти адміністратора вимкнені: увімкніть enabled = true в їхніх налаштуваннях."
 "no-character" = "У консолі немає персонажа: скористайтеся give-to."
 "#;
-/// The mod's id, as `manifest!` spells it.
-const ID: &str = "admin-tools";
-
 /// Admin tools: actions and a command file for test servers. Keep them off
 /// on a server people play on.
 #[derive(Debug, Default, serde::Deserialize, serde::Serialize, enshwick::Config)]
 #[serde(deny_unknown_fields)]
 struct Settings {
     /// Turn on the administrator actions and the command file
-    /// mod-data/admin-tools/commands.txt, whose new lines run on the server's
-    /// console.
+    /// mod-data/enshwick.admin-tools/commands.txt, whose new lines run on the
+    /// server's console.
     #[config(runtime)]
     enabled: bool,
 }
 
-static ENABLED: AtomicBool = AtomicBool::new(false);
-/// Command file lines run since start.
-static RUN: AtomicU64 = AtomicU64::new(0);
-/// The last pieces placed, newest last.
-static PLACED: Mutex<VecDeque<Placed>> = Mutex::new(VecDeque::new());
+/// What the tools keep while the game runs.
+#[derive(Debug, Default)]
+struct Kept {
+    enabled: AtomicBool,
+    /// Command file lines run since start.
+    run: AtomicU64,
+    /// The last pieces placed, newest last.
+    placed: Mutex<VecDeque<Placed>>,
+}
+
+static KEPT: ModLocal<Kept> = ModLocal::new();
+
+fn kept() -> &'static Kept {
+    KEPT.get_or_init(Kept::default)
+}
+
+fn placed() -> MutexGuard<'static, VecDeque<Placed>> {
+    kept().placed.lock().unwrap_or_else(PoisonError::into_inner)
+}
 
 fn set_enabled(settings: &Settings) {
-    let was = ENABLED.swap(settings.enabled, Ordering::AcqRel);
+    let was = kept().enabled.swap(settings.enabled, Ordering::AcqRel);
     if was != settings.enabled {
         enshwick::info!(
             "admin tools {}",
@@ -115,10 +123,10 @@ pub struct AdminTools {
 impl Mod for AdminTools {
     fn manifest() -> &'static enshwick::abi::Manifest {
         enshwick::manifest!(
-            id: "admin-tools",
+            id: "enshwick.admin-tools",
             side: SERVER,
             name: "Admin tools",
-            replaces: ["dev-tools"],
+            was: ["admin-tools", "dev-tools"],
         )
     }
 
@@ -129,9 +137,6 @@ impl Mod for AdminTools {
             .and_then(Path::parent)
             .ok_or_else(|| Off::new("the data folder is not under the game's folder"))?
             .to_path_buf();
-        for line in migrate::migrate(&game, ID) {
-            enshwick::info!("{line}");
-        }
         let settings: Settings = load.config()?;
         set_enabled(&settings);
         load.on_config_change(|settings: Settings| set_enabled(&settings))?;
@@ -141,10 +146,7 @@ impl Mod for AdminTools {
         // Entity ids belong to one game: a hosted game's next world starts
         // with nothing placed.
         load.on::<enshwick::events::ShutdownStarted>(|()| {
-            PLACED
-                .lock()
-                .unwrap_or_else(PoisonError::into_inner)
-                .clear();
+            placed().clear();
         })?;
         let tools = Arc::new(Tools {
             world,
@@ -154,14 +156,14 @@ impl Mod for AdminTools {
         let texts = load.texts(TEXTS)?;
         declare(load, texts, &tools)?;
         load.add_status(|| {
-            let state = if ENABLED.load(Ordering::Acquire) {
+            let state = if kept().enabled.load(Ordering::Acquire) {
                 "on"
             } else {
                 "off"
             };
             format!(
                 "{state}; {} command file lines run",
-                RUN.load(Ordering::Relaxed)
+                kept().run.load(Ordering::Relaxed)
             )
         })?;
         Ok(Self {
@@ -184,7 +186,7 @@ enshwick::declare_mod!(AdminTools);
 
 /// Remembers a placed piece for `placed`.
 fn remember(data: &enshwick::abi::BuildingData) {
-    let mut placed = PLACED.lock().unwrap_or_else(PoisonError::into_inner);
+    let mut placed = placed();
     if placed.len() == REMEMBERED {
         placed.pop_front();
     }
@@ -207,7 +209,7 @@ struct Tools {
 /// Lets administrators run an action while the tools are on; why not,
 /// otherwise.
 fn while_on(ask: &Ask<'_>) -> Result<Subject, String> {
-    if ENABLED.load(Ordering::Acquire) {
+    if kept().enabled.load(Ordering::Acquire) {
         Ok(Subject::new(0, ""))
     } else {
         Err(ask.say("off", &[]))
@@ -252,7 +254,7 @@ fn declare(
             let [Value::Number(count)] = request.args else {
                 return Outcome::refused("");
             };
-            let placed = PLACED.lock().unwrap_or_else(PoisonError::into_inner);
+            let placed = placed();
             let newest: Vec<Placed> = placed
                 .iter()
                 .rev()
@@ -394,7 +396,7 @@ fn watch(path: &Path, scheduler: Scheduler) {
         if lines.is_empty() {
             continue;
         }
-        if !ENABLED.load(Ordering::Acquire) {
+        if !kept().enabled.load(Ordering::Acquire) {
             enshwick::info!(
                 "{} command file lines skipped: admin tools are off",
                 lines.len()
@@ -411,7 +413,7 @@ fn watch(path: &Path, scheduler: Scheduler) {
 
 /// Runs a command file line on the console and logs its answer.
 fn run(line: &str) {
-    RUN.fetch_add(1, Ordering::Relaxed);
+    kept().run.fetch_add(1, Ordering::Relaxed);
     match enshwick::console::run(line) {
         Ok(answer) if answer.is_empty() => enshwick::info!("{line}: no answer"),
         Ok(answer) => enshwick::info!("{line}:\n{answer}"),
@@ -426,16 +428,10 @@ mod tests {
     use super::*;
 
     #[test]
-    fn every_text_exists_in_all_languages() {
-        let languages: std::collections::BTreeMap<
-            String,
-            std::collections::BTreeMap<String, String>,
-        > = toml::from_str(TEXTS).unwrap();
-        for (language, entries) in &languages {
-            for key in languages.values().flat_map(|other| other.keys()) {
-                assert!(entries.contains_key(key), "{key} has no {language}");
-            }
-        }
+    fn every_text_exists_in_all_languages() -> Result<(), Off> {
+        let texts = enshwick::i18n::Texts::parse(TEXTS)?;
+        assert_eq!(texts.untranslated(), []);
+        Ok(())
     }
 
     fn player(permissions: u8) -> PlayerInfo {
@@ -463,7 +459,10 @@ mod tests {
         let loader = enshwick::test::FakeHost::new()
             .type_hash("keen::ecs::CurrentTransform", 1)
             .type_hash("keen::ecs::UsedItem", 2)
-            .console_answer("enshwick", "Enshwick 0.0.0-test: admin-tools 0.1.0")
+            .console_answer(
+                "enshwick",
+                "Enshwick 0.0.0-test: enshwick.admin-tools 0.1.0",
+            )
             .settings("enabled = false\n")
             .install();
         // SAFETY: the exports of `declare_mod!` above.
@@ -490,7 +489,7 @@ mod tests {
                 .as_deref(),
             Some("")
         );
-        let off = console::run("admin-tools world").unwrap();
+        let off = console::run("enshwick.admin-tools world").unwrap();
         assert!(off.contains("enabled = true"), "{off}");
 
         loader.set_settings("enabled = true\n");
@@ -508,22 +507,22 @@ mod tests {
             Some("0You may not do that.")
         );
         assert!(
-            console::run("admin-tools give 7 1")
+            console::run("enshwick.admin-tools give 7 1")
                 .unwrap()
                 .contains("give-to")
         );
         assert!(
-            console::run("admin-tools help")
+            console::run("enshwick.admin-tools help")
                 .unwrap()
                 .contains("placed <1-32>")
         );
         assert!(loader.status()[0].starts_with("on; "));
 
         run("enshwick status");
-        run("admin-tools world");
+        run("enshwick.admin-tools world");
         assert_eq!(
             loader.console()[3..],
-            ["enshwick status", "admin-tools world"]
+            ["enshwick status", "enshwick.admin-tools world"]
         );
         let logs = loader.logs();
         assert!(logs.iter().any(|(_, l)| l.contains("Enshwick 0.0.0-test")));
@@ -558,7 +557,7 @@ mod tests {
             position: [1.0, 2.0, 3.0],
         };
         assert_eq!(loader.raise::<BuildingPlaced>(&piece), 1);
-        let placed = || enshwick::console::run("admin-tools placed 5").unwrap();
+        let placed = || enshwick::console::run("enshwick.admin-tools placed 5").unwrap();
         let before = placed();
         assert!(before.contains("900"), "{before}");
         assert!(loader.raise::<ShutdownStarted>(&()) >= 1);
